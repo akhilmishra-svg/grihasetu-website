@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — GrihaSetu</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/index.html" class="brand"><span class="mark">GS</span> GrihaSetu</a>
+    <div></div><div></div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="card card-narrow">
+    <span class="eyebrow">Secure Admin Portal</span>
+    <h2>Admin Login</h2>
+    <div id="formMsg"></div>
+    <form id="adminLoginForm">
+      <div class="form-row">
+        <label for="mobile">Mobile Number</label>
+        <input type="tel" id="mobile" required>
+      </div>
+      <div class="form-row">
+        <label for="password">Password</label>
+        <input type="password" id="password" required>
+      </div>
+      <button type="submit" class="btn btn-brass btn-block" id="submitBtn">Login</button>
+    </form>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('formMsg');
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Logging in...';
+  try {
+    const user = await api('/api/login', 'POST', {
+      mobile: document.getElementById('mobile').value.trim(),
+      password: document.getElementById('password').value,
+    });
+    if (user.userType !== 'admin') {
+      msg.innerHTML = `<div class="msg msg-error">This account is not an admin.</div>`;
+      btn.disabled = false; btn.textContent = 'Login';
+      return;
+    }
+    setSession(user);
+    window.location.href = '/admin.html';
+  } catch (err) {
+    msg.innerHTML = `<div class="msg msg-error">${err.message}</div>`;
+    btn.disabled = false; btn.textContent = 'Login';
+  }
+});
+</script>
+</body>
+</html>

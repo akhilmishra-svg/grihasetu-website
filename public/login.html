@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — GrihaSetu</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/index.html" class="brand"><span class="mark">GS</span> GrihaSetu</a>
+    <div></div>
+    <div class="nav-cta"><a href="/register.html" class="btn btn-ghost btn-sm">Create account</a></div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="card card-narrow">
+    <h2>Welcome back</h2>
+    <p style="color:var(--ink-soft); margin-top:-8px; margin-bottom:22px; font-size:.9rem;">Log in with your mobile number and password.</p>
+
+    <div id="formMsg"></div>
+
+    <form id="loginForm">
+      <div class="form-row">
+        <label for="mobile">Mobile Number</label>
+        <input type="tel" id="mobile" required placeholder="10-digit mobile number">
+      </div>
+      <div class="form-row">
+        <label for="password">Password</label>
+        <input type="password" id="password" required placeholder="Your password">
+        <div class="hint"><a href="#">Forgot password?</a></div>
+      </div>
+      <button type="submit" class="btn btn-brass btn-block" id="submitBtn">Login</button>
+    </form>
+
+    <p style="text-align:center; margin-top:18px; font-size:.85rem; color:var(--ink-soft);">
+      Are you an admin? <a href="/admin-login.html">Admin login here</a>
+    </p>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('formMsg');
+  const btn = document.getElementById('submitBtn');
+  msg.innerHTML = '';
+  btn.disabled = true; btn.textContent = 'Logging in...';
+
+  try {
+    const user = await api('/api/login', 'POST', {
+      mobile: document.getElementById('mobile').value.trim(),
+      password: document.getElementById('password').value,
+    });
+    setSession(user);
+    window.location.href = user.userType === 'admin' ? '/admin.html' : '/dashboard.html';
+  } catch (err) {
+    msg.innerHTML = `<div class="msg msg-error">${err.message}</div>`;
+    btn.disabled = false; btn.textContent = 'Login';
+  }
+});
+</script>
+</body>
+</html>

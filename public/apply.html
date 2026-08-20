@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apply — GrihaSetu</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/index.html" class="brand"><span class="mark">GS</span> GrihaSetu</a>
+    <div></div>
+    <div class="nav-cta" id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="card" style="max-width:640px; margin:44px auto;">
+    <span class="eyebrow">Loan Requirement Form</span>
+    <h2>Tell us what you need</h2>
+    <p style="color:var(--ink-soft); font-size:.9rem; margin-bottom:24px;">Fill out the form in 2 minutes, our team will call you back within 24 hours.</p>
+
+    <div id="formMsg"></div>
+
+    <form id="applyForm">
+      <div class="form-row">
+        <label for="applicantName">Applicant Name</label>
+        <input type="text" id="applicantName" required>
+      </div>
+      <div class="form-row">
+        <label for="mobile">Mobile Number</label>
+        <input type="tel" id="mobile" required>
+      </div>
+      <div class="form-row">
+        <label>Employment Type</label>
+        <div class="radio-group">
+          <label class="radio-pill active"><input type="radio" name="employment" value="Salaried" checked> Salaried</label>
+          <label class="radio-pill"><input type="radio" name="employment" value="Self-employed"> Self-employed</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="income">Monthly / Annual Income (₹)</label>
+        <input type="number" id="income" placeholder="e.g. 60000">
+      </div>
+      <div class="form-row">
+        <label for="existingEmi">Existing EMI / Obligations (₹, if any)</label>
+        <input type="number" id="existingEmi" placeholder="e.g. 5000">
+      </div>
+      <div class="form-row">
+        <label for="propertyLocation">Property Location</label>
+        <input type="text" id="propertyLocation" placeholder="City / Area">
+      </div>
+      <div class="form-row">
+        <label for="propertyValue">Property Value (₹)</label>
+        <input type="number" id="propertyValue" placeholder="e.g. 5000000">
+      </div>
+      <div class="form-row">
+        <label for="loanAmount">Required Loan Amount (₹)</label>
+        <input type="number" id="loanAmount" required placeholder="e.g. 4000000">
+      </div>
+      <div class="form-row">
+        <label for="loanType">Loan Type</label>
+        <select id="loanType">
+          <option>Purchase</option>
+          <option>Balance Transfer</option>
+          <option>LAP</option>
+          <option>Resale</option>
+          <option>New Booking</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="callbackTime">Preferred Callback Time</label>
+        <select id="callbackTime">
+          <option>Morning (9am–12pm)</option>
+          <option>Afternoon (12pm–4pm)</option>
+          <option>Evening (4pm–8pm)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-brass btn-block" id="submitBtn">Submit Requirement</button>
+    </form>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+document.querySelectorAll('.radio-group').forEach(group => {
+  group.addEventListener('click', (e) => {
+    const pill = e.target.closest('.radio-pill');
+    if (!pill) return;
+    group.querySelectorAll('.radio-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+  });
+});
+
+document.getElementById('applyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('formMsg');
+  const btn = document.getElementById('submitBtn');
+  msg.innerHTML = '';
+
+  let user = getSession();
+  if (!user) {
+    // Guest applying: quietly create a lightweight account so they can track status later
+    msg.innerHTML = `<div class="msg msg-error">Please login/register first so you can track your application. <a href="/register.html">Register here</a></div>`;
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  try {
+    await api('/api/applications', 'POST', {
+      userId: user.id,
+      applicantName: document.getElementById('applicantName').value.trim(),
+      mobile: document.getElementById('mobile').value.trim(),
+      employment: document.querySelector('input[name=employment]:checked').value,
+      income: document.getElementById('income').value,
+      existingEmi: document.getElementById('existingEmi').value,
+      propertyLocation: document.getElementById('propertyLocation').value.trim(),
+      propertyValue: document.getElementById('propertyValue').value,
+      loanAmount: document.getElementById('loanAmount').value,
+      loanType: document.getElementById('loanType').value,
+      callbackTime: document.getElementById('callbackTime').value,
+    });
+    window.location.href = '/dashboard.html';
+  } catch (err) {
+    msg.innerHTML = `<div class="msg msg-error">${err.message}</div>`;
+    btn.disabled = false; btn.textContent = 'Submit Requirement';
+  }
+});
+
+// Prefill name/mobile if logged in
+window.addEventListener('DOMContentLoaded', () => {
+  const u = getSession();
+  if (u) {
+    document.getElementById('applicantName').value = u.name;
+    document.getElementById('mobile').value = u.mobile;
+  }
+});
+</script>
+</body>
+</html>

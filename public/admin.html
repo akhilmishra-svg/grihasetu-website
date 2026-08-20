@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — GrihaSetu</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/index.html" class="brand"><span class="mark">GS</span> GrihaSetu</a>
+    <div class="eyebrow" style="margin:0;">Admin Panel</div>
+    <div class="nav-cta"><button onclick="doLogout()" class="btn btn-ghost btn-sm">Logout</button></div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="dash-head">
+    <span class="eyebrow">MIS Overview</span>
+    <h2>All Leads</h2>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:32px;">
+    <div class="stat"><div class="n" id="statTotal">—</div><div class="l">Total Leads</div></div>
+    <div class="stat"><div class="n" id="statPending">—</div><div class="l">Documents Pending</div></div>
+    <div class="stat"><div class="n" id="statDisbursed">—</div><div class="l">Disbursed</div></div>
+  </div>
+
+  <div class="card" style="padding:0; overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>App ID</th><th>Customer</th><th>Mobile</th><th>Loan Type</th><th>Amount</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="leadsTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+const user = requireAuth('/admin-login.html');
+if (user.userType !== 'admin') window.location.href = '/admin-login.html';
+
+const STATUS_STEPS = ['Lead Created','Documents Pending','Application Submitted','Credit Assessment','Sanction','Disbursement'];
+
+async function loadLeads(){
+  const tbody = document.getElementById('leadsTable');
+  try {
+    const apps = await api('/api/applications');
+    document.getElementById('statTotal').textContent = apps.length;
+    document.getElementById('statPending').textContent = apps.filter(a=>a.status==='Documents Pending').length;
+    document.getElementById('statDisbursed').textContent = apps.filter(a=>a.status==='Disbursement').length;
+
+    tbody.innerHTML = apps.map(a => `
+      <tr>
+        <td class="mono">APP-${String(a.id).padStart(4,'0')}</td>
+        <td>${a.userName}</td>
+        <td>${a.userMobile}</td>
+        <td>${a.loanType || '—'}</td>
+        <td>₹${a.loanAmount || '—'}</td>
+        <td>
+          <select class="status-select" data-id="${a.id}">
+            ${STATUS_STEPS.map(s => `<option value="${s}" ${s===a.status?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('.status-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        await api(`/api/applications/${sel.dataset.id}/status`, 'POST', { status: sel.value });
+        loadLeads();
+      });
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="msg msg-error">${err.message}</div></td></tr>`;
+  }
+}
+loadLeads();
+</script>
+</body>
+</html>

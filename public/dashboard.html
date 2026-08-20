@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — GrihaSetu</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/index.html" class="brand"><span class="mark">GS</span> GrihaSetu</a>
+    <div></div>
+    <div class="nav-cta" id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="dash-head">
+    <span class="eyebrow">Dashboard</span>
+    <h2 id="welcomeName">Welcome</h2>
+  </div>
+
+  <div class="dash-grid">
+    <div class="side-nav">
+      <a href="#" class="active">My Applications</a>
+      <a href="/apply.html">Apply for New Loan</a>
+      <a href="#" id="profileTab">Profile</a>
+      <a href="tel:+911234567890">Call Support</a>
+      <a href="https://wa.me/911234567890">WhatsApp Support</a>
+    </div>
+
+    <div>
+      <div id="appsList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+const user = requireAuth();
+
+document.getElementById('welcomeName').textContent = `Welcome, ${user.name}`;
+
+const STATUS_STEPS = ['Lead Created','Documents Pending','Application Submitted','Credit Assessment','Sanction','Disbursement'];
+
+function renderTracker(currentStatus){
+  const currentIndex = STATUS_STEPS.indexOf(currentStatus);
+  return `<div class="tracker">` + STATUS_STEPS.map((step, i) => {
+    let cls = '';
+    if (i < currentIndex) cls = 'done';
+    else if (i === currentIndex) cls = 'current';
+    return `<div class="stamp-item ${cls}">
+      <div class="connector"></div>
+      <div class="stamp">${step.split(' ').map(w=>w[0]).join('')}</div>
+      <div class="label">${step}</div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+async function loadApplications(){
+  const list = document.getElementById('appsList');
+  list.innerHTML = '<p style="color:var(--ink-soft)">Loading...</p>';
+  try {
+    const apps = await api(`/api/applications/user/${user.id}`);
+    if (apps.length === 0) {
+      list.innerHTML = `<div class="empty card">
+        <h3>No applications yet</h3>
+        <p>Submit your first loan requirement.</p>
+        <a href="/apply.html" class="btn btn-brass" style="margin-top:16px;">Apply Now</a>
+      </div>`;
+      return;
+    }
+    list.innerHTML = apps.map(a => `
+      <div class="app-card">
+        <div class="app-card-head">
+          <div>
+            <strong>${a.loanType || 'Home Loan'}</strong> · ₹${a.loanAmount || '—'}
+            <div style="font-size:.8rem; color:var(--ink-soft); margin-top:2px;">Applied on ${new Date(a.createdAt).toLocaleDateString('en-IN')}</div>
+          </div>
+          <span class="tag mono">APP-${String(a.id).padStart(4,'0')}</span>
+        </div>
+        ${renderTracker(a.status)}
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="msg msg-error">${err.message}</div>`;
+  }
+}
+
+loadApplications();
+</script>
+</body>
+</html>
