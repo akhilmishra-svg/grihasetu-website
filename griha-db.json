@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Admin",
+      "mobile": "9999999999",
+      "email": "",
+      "city": "",
+      "userType": "admin",
+      "password": "$2b$10$M9ozzdKvKq02UVxV3Z0Qa.89O61HEI6DTglyWZ37d6vn8C2C93ZHe",
+      "createdAt": "2026-09-18T05:28:40.729Z"
+    }
+  ],
+  "applications": [],
+  "nextUserId": 2,
+  "nextAppId": 1
+}
