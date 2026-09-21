@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Documents — GrihaSetu</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/index.html" class="brand"><span class="mark">GS</span> GrihaSetu</a>
+    <div></div>
+    <div class="nav-cta" id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="card" style="max-width:640px; margin:44px auto;">
+    <span class="eyebrow">Document Upload</span>
+    <h2>Upload your documents</h2>
+    <p style="color:var(--ink-soft); font-size:.9rem; margin-bottom:24px;">Accepted formats: PDF, JPG, PNG. Max 10MB per file.</p>
+
+    <div id="formMsg"></div>
+
+    <form id="uploadForm">
+      <div class="form-row">
+        <label for="docType">Document Type</label>
+        <select id="docType" required></select>
+      </div>
+      <div class="form-row">
+        <label for="file">Choose File</label>
+        <input type="file" id="file" required accept=".pdf,.jpg,.jpeg,.png">
+      </div>
+      <button type="submit" class="btn btn-brass btn-block" id="submitBtn">Upload Document</button>
+    </form>
+  </div>
+
+  <div class="card" style="max-width:640px; margin:0 auto 60px;">
+    <h3 style="margin-bottom:16px;">Uploaded Documents</h3>
+    <div id="docsList"></div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+const user = requireAuth();
+const params = new URLSearchParams(window.location.search);
+const applicationId = params.get('appId');
+
+if (!applicationId) {
+  document.body.innerHTML = '<div class="wrap"><div class="msg msg-error" style="margin-top:40px;">No application selected. Go back to your <a href="/dashboard.html">dashboard</a> and choose an application to upload documents for.</div></div>';
+}
+
+async function loadDocTypes() {
+  const types = await api('/api/document-types');
+  const select = document.getElementById('docType');
+  select.innerHTML = types.map(t => `<option value="${t}">${t}</option>`).join('');
+}
+
+async function loadDocs() {
+  const list = document.getElementById('docsList');
+  list.innerHTML = '<p style="color:var(--ink-soft)">Loading...</p>';
+  try {
+    const docs = await api(`/api/documents/application/${applicationId}`);
+    if (docs.length === 0) {
+      list.innerHTML = `<p style="color:var(--ink-soft); font-size:.9rem;">No documents uploaded yet.</p>`;
+      return;
+    }
+    const statusColor = { Uploaded: 'var(--brass)', Approved: 'var(--green)', Rejected: 'var(--rust)', Pending: 'var(--ink-soft)' };
+    list.innerHTML = docs.map(d => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--line);">
+        <div>
+          <div style="font-weight:600; font-size:.92rem;">${d.docType}</div>
+          <div style="font-size:.78rem; color:var(--ink-soft);">${d.originalName} · ${(d.size/1024).toFixed(0)} KB</div>
+        </div>
+        <span class="tag mono" style="color:${statusColor[d.status] || 'var(--ink-soft)'};">${d.status}</span>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="msg msg-error">${err.message}</div>`;
+  }
+}
+
+document.getElementById('uploadForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('formMsg');
+  const btn = document.getElementById('submitBtn');
+  const fileInput = document.getElementById('file');
+  msg.innerHTML = '';
+
+  if (!fileInput.files[0]) {
+    msg.innerHTML = `<div class="msg msg-error">Please choose a file.</div>`;
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Uploading...';
+  const formData = new FormData();
+  formData.append('applicationId', applicationId);
+  formData.append('docType', document.getElementById('docType').value);
+  formData.append('file', fileInput.files[0]);
+
+  try {
+    const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed.');
+    msg.innerHTML = `<div class="msg msg-success">Document uploaded successfully.</div>`;
+    fileInput.value = '';
+    loadDocs();
+  } catch (err) {
+    msg.innerHTML = `<div class="msg msg-error">${err.message}</div>`;
+  }
+  btn.disabled = false; btn.textContent = 'Upload Document';
+});
+
+if (applicationId) {
+  loadDocTypes();
+  loadDocs();
+}
+</script>
+</body>
+</html>

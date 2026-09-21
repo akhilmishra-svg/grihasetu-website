@@ -82,6 +82,9 @@ async function loadApplications(){
           <span class="tag mono">APP-${String(a.id).padStart(4,'0')}</span>
         </div>
         ${renderTracker(a.status)}
+        <div style="margin-top:14px; display:flex; gap:10px;">
+          <a href="/documents.html?appId=${a.id}" class="btn btn-ghost btn-sm">Upload Documents</a>
+        </div>
       </div>
     `).join('');
   } catch (err) {

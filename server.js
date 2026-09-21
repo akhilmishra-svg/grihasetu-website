@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 
@@ -7,14 +8,38 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ---- File upload setup (documents stored outside /public so they aren't publicly browsable) ----
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `${unique}${path.extname(file.originalname)}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per file
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.jpg', '.jpeg', '.png'];
+    if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
+    else cb(new Error('Only PDF, JPG and PNG files are allowed.'));
+  },
+});
+
 // ---- Simple JSON file "database" (no native compilation needed) ----
 const DB_FILE = path.join(__dirname, 'griha-db.json');
 
 function readDB() {
   if (!fs.existsSync(DB_FILE)) {
-    return { users: [], applications: [], nextUserId: 1, nextAppId: 1 };
+    return { users: [], applications: [], documents: [], nextUserId: 1, nextAppId: 1, nextDocId: 1 };
   }
-  return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+  const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+  if (!data.documents) data.documents = [];
+  if (!data.nextDocId) data.nextDocId = 1;
+  return data;
 }
 function writeDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
@@ -108,6 +133,76 @@ app.post('/api/applications/:id/status', (req, res) => {
 });
 
 app.get('/api/status-steps', (req, res) => res.json(STATUS_STEPS));
+
+// ---- DOCUMENTS ----
+const DOC_TYPES = ['PAN Card', 'Aadhaar / KYC', 'Salary Slips', 'Bank Statements', 'ITR / Business Documents', 'Property Documents'];
+app.get('/api/document-types', (req, res) => res.json(DOC_TYPES));
+
+app.post('/api/documents/upload', upload.single('file'), (req, res) => {
+  const { applicationId, docType } = req.body;
+  if (!req.file) return res.status(400).json({ error: 'No file was uploaded.' });
+  if (!applicationId || !docType) return res.status(400).json({ error: 'Application and document type are required.' });
+
+  const data = readDB();
+  const doc = {
+    id: data.nextDocId++,
+    applicationId: Number(applicationId),
+    docType,
+    originalName: req.file.originalname,
+    storedName: req.file.filename,
+    size: req.file.size,
+    status: 'Uploaded',
+    uploadedAt: new Date().toISOString(),
+  };
+  data.documents.push(doc);
+  writeDB(data);
+  res.json(doc);
+});
+
+app.get('/api/documents/application/:appId', (req, res) => {
+  const data = readDB();
+  const appId = Number(req.params.appId);
+  const docs = data.documents.filter(d => d.applicationId === appId);
+  res.json(docs);
+});
+
+app.get('/api/documents/file/:id', (req, res) => {
+  const data = readDB();
+  const doc = data.documents.find(d => d.id === Number(req.params.id));
+  if (!doc) return res.status(404).json({ error: 'Document not found.' });
+  const filePath = path.join(UPLOADS_DIR, doc.storedName);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing on server.' });
+  res.sendFile(filePath);
+});
+
+app.post('/api/documents/:id/status', (req, res) => {
+  const { status } = req.body;
+  const validStatuses = ['Uploaded', 'Pending', 'Rejected', 'Approved'];
+  if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  const data = readDB();
+  const doc = data.documents.find(d => d.id === Number(req.params.id));
+  if (!doc) return res.status(404).json({ error: 'Document not found.' });
+  doc.status = status;
+  writeDB(data);
+  res.json({ ok: true });
+});
+
+app.delete('/api/documents/:id', (req, res) => {
+  const data = readDB();
+  const doc = data.documents.find(d => d.id === Number(req.params.id));
+  if (!doc) return res.status(404).json({ error: 'Document not found.' });
+  const filePath = path.join(UPLOADS_DIR, doc.storedName);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  data.documents = data.documents.filter(d => d.id !== doc.id);
+  writeDB(data);
+  res.json({ ok: true });
+});
+
+// Multer error handler (file too large, wrong type, etc.)
+app.use((err, req, res, next) => {
+  if (err) return res.status(400).json({ error: err.message || 'Upload failed.' });
+  next();
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`GrihaSetu server running on http://localhost:${PORT}`));
