@@ -9,9 +9,31 @@
       "userType": "admin",
       "password": "$2b$10$M9ozzdKvKq02UVxV3Z0Qa.89O61HEI6DTglyWZ37d6vn8C2C93ZHe",
       "createdAt": "2026-09-18T05:28:40.729Z"
+    },
+    {
+      "id": 2,
+      "name": "akhil",
+      "mobile": "8266933940",
+      "email": "khilmishraa2k@gmai.com",
+      "city": "kanpur",
+      "userType": "customer",
+      "password": "$2b$10$IjR3pAL2DJiO7TPMiI27s.57wwZSd6Cgjcm6tIOmTraNw72XgHtUG",
+      "createdAt": "2026-09-21T10:54:58.309Z"
+    },
+    {
+      "id": 3,
+      "name": "Purvi Mishra",
+      "mobile": "9045124897",
+      "email": "mrakhil9045@gmail.com",
+      "city": "delhi",
+      "userType": "customer",
+      "password": "$2b$10$Q/OhXXjoFUUZwR5Y.EAgZeIOTMotqOj4vzEns0ZxiFlh4yEdS8Dsm",
+      "createdAt": "2026-09-23T06:41:46.045Z"
     }
   ],
   "applications": [],
-  "nextUserId": 2,
-  "nextAppId": 1
+  "nextUserId": 4,
+  "nextAppId": 1,
+  "documents": [],
+  "nextDocId": 1
 }

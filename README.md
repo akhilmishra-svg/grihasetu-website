@@ -12,6 +12,23 @@ node server.js
 
 Open **http://localhost:3000**
 
+## Setting up Email OTP (required for registration)
+
+Registration now requires email OTP verification. You need a Gmail account to send these emails.
+
+1. Go to your Google Account → **Security** → turn on **2-Step Verification** (required for the next step)
+2. Go to **myaccount.google.com/apppasswords**
+3. Create an app password for "Mail" — Google gives you a 16-character code
+4. In your project folder, create a file named `.env` (copy `.env.example` and rename it)
+5. Fill it in:
+   ```
+   EMAIL_USER=youraccount@gmail.com
+   EMAIL_PASS=the16characterapppassword
+   ```
+6. Restart the server (`node server.js`) — OTP emails will now send from this Gmail account
+
+**On Render (for the live site):** go to your service → **Environment** tab → add the same two variables (`EMAIL_USER`, `EMAIL_PASS`) there. Never commit your real `.env` file to GitHub — it's already excluded via `.gitignore`.
+
 **Default admin login** (change this before going live):
 - Mobile: `9999999999`
 - Password: `admin123`

@@ -1,12 +1,33 @@
+require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ---- Email (OTP) setup ----
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+let transporter = null;
+if (EMAIL_USER && EMAIL_PASS) {
+  transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+  });
+} else {
+  console.warn('EMAIL_USER / EMAIL_PASS not set — OTP emails will not be sent. See README for setup.');
+}
+
+// In-memory OTP store: { email: { otp, expiresAt, verified } }
+const otpStore = {};
+function generateOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 // ---- File upload setup (documents stored outside /public so they aren't publicly browsable) ----
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -47,11 +68,48 @@ function writeDB(data) {
 
 const STATUS_STEPS = ['Lead Created', 'Documents Pending', 'Application Submitted', 'Credit Assessment', 'Sanction', 'Disbursement'];
 
+// ---- EMAIL OTP ----
+app.post('/api/otp/send', async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Please enter a valid email address.' });
+  if (!transporter) return res.status(500).json({ error: 'Email service is not configured on the server yet.' });
+
+  const otp = generateOtp();
+  otpStore[email] = { otp, expiresAt: Date.now() + 10 * 60 * 1000, verified: false };
+
+  try {
+    await transporter.sendMail({
+      from: `"GrihaSetu" <${EMAIL_USER}>`,
+      to: email,
+      subject: 'Your GrihaSetu verification code',
+      html: `<p>Your OTP for GrihaSetu registration is:</p><h2 style="letter-spacing:4px;">${otp}</h2><p>This code expires in 10 minutes.</p>`,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Email send failed:', err.message);
+    res.status(500).json({ error: 'Could not send OTP email. Please try again.' });
+  }
+});
+
+app.post('/api/otp/verify', (req, res) => {
+  const { email, otp } = req.body;
+  const record = otpStore[email];
+  if (!record) return res.status(400).json({ error: 'Please request an OTP first.' });
+  if (Date.now() > record.expiresAt) return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+  if (record.otp !== otp) return res.status(400).json({ error: 'Incorrect OTP.' });
+
+  record.verified = true;
+  res.json({ ok: true });
+});
+
 // ---- AUTH ----
 app.post('/api/register', (req, res) => {
   const { name, mobile, email, city, userType, password } = req.body;
   if (!name || !mobile || !password) {
     return res.status(400).json({ error: 'Name, mobile and password are required.' });
+  }
+  if (!email || !otpStore[email] || !otpStore[email].verified) {
+    return res.status(400).json({ error: 'Please verify your email with the OTP before creating an account.' });
   }
   const data = readDB();
   const existing = data.users.find(u => u.mobile === mobile);
@@ -66,6 +124,7 @@ app.post('/api/register', (req, res) => {
   };
   data.users.push(user);
   writeDB(data);
+  delete otpStore[email]; // OTP used, clean it up
 
   res.json({ id: user.id, name: user.name, mobile: user.mobile, userType: user.userType });
 });

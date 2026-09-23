@@ -40,8 +40,19 @@
         <input type="tel" id="mobile" required placeholder="10-digit mobile number" pattern="[0-9]{10}">
       </div>
       <div class="form-row">
-        <label for="email">Email (optional)</label>
-        <input type="email" id="email" placeholder="you@example.com">
+        <label for="email">Email</label>
+        <div style="display:flex; gap:8px;">
+          <input type="email" id="email" required placeholder="you@example.com" style="flex:1;">
+          <button type="button" id="sendOtpBtn" class="btn btn-ghost btn-sm" style="white-space:nowrap;">Send OTP</button>
+        </div>
+      </div>
+      <div class="form-row" id="otpRow" style="display:none;">
+        <label for="otp">Enter OTP</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="otp" placeholder="6-digit code" maxlength="6" style="flex:1;">
+          <button type="button" id="verifyOtpBtn" class="btn btn-ghost btn-sm">Verify</button>
+        </div>
+        <div class="hint" id="otpHint"></div>
       </div>
       <div class="form-row">
         <label for="city">City</label>
@@ -51,7 +62,7 @@
         <label for="password">Password</label>
         <input type="password" id="password" required minlength="6" placeholder="At least 6 characters">
       </div>
-      <button type="submit" class="btn btn-brass btn-block" id="submitBtn">Create Account</button>
+      <button type="submit" class="btn btn-brass btn-block" id="submitBtn" disabled>Create Account (verify email first)</button>
     </form>
   </div>
 </div>
@@ -65,11 +76,62 @@ document.querySelectorAll('.radio-pill').forEach(pill => {
   });
 });
 
+let emailVerified = false;
+
+document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim();
+  const btn = document.getElementById('sendOtpBtn');
+  const msg = document.getElementById('formMsg');
+  msg.innerHTML = '';
+  if (!email || !email.includes('@')) {
+    msg.innerHTML = `<div class="msg msg-error">Please enter a valid email first.</div>`;
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    await api('/api/otp/send', 'POST', { email });
+    document.getElementById('otpRow').style.display = 'block';
+    document.getElementById('otpHint').textContent = `OTP sent to ${email}. It expires in 10 minutes.`;
+    btn.textContent = 'Resend OTP';
+  } catch (err) {
+    msg.innerHTML = `<div class="msg msg-error">${err.message}</div>`;
+    btn.textContent = 'Send OTP';
+  }
+  btn.disabled = false;
+});
+
+document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim();
+  const otp = document.getElementById('otp').value.trim();
+  const hint = document.getElementById('otpHint');
+  const btn = document.getElementById('verifyOtpBtn');
+  btn.disabled = true; btn.textContent = 'Verifying...';
+  try {
+    await api('/api/otp/verify', 'POST', { email, otp });
+    emailVerified = true;
+    hint.innerHTML = `<span style="color:var(--green); font-weight:600;">Email verified ✓</span>`;
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Create Account';
+    document.getElementById('email').disabled = true;
+    document.getElementById('sendOtpBtn').disabled = true;
+  } catch (err) {
+    hint.innerHTML = `<span style="color:var(--rust);">${err.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = 'Verify';
+});
+
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('formMsg');
   const btn = document.getElementById('submitBtn');
   msg.innerHTML = '';
+
+  if (!emailVerified) {
+    msg.innerHTML = `<div class="msg msg-error">Please verify your email with the OTP first.</div>`;
+    return;
+  }
+
   btn.disabled = true; btn.textContent = 'Creating...';
 
   const userType = document.querySelector('input[name=userType]:checked').value;
