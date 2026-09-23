@@ -16,7 +16,10 @@ const EMAIL_PASS = process.env.EMAIL_PASS;
 let transporter = null;
 if (EMAIL_USER && EMAIL_PASS) {
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    family: 4, // force IPv4 — some hosts (like Render) fail to reach Gmail over IPv6
     auth: { user: EMAIL_USER, pass: EMAIL_PASS },
   });
 } else {
